@@ -1,0 +1,61 @@
+FROM <IMAGE>:<VERSION> as base
+# The new image based on ubuntu:18.10
+FROM ubuntu:18.10
+USER root
+# Let the container know what version of Artifactory it is
+ENV ARTIFACTORY_VERSION=7.0.0
+
+ENV JF_ARTIFACTORY_USER=artifactory \
+    ARTIFACTORY_VERSION=${ARTIFACTORY_VERSION} \
+    JF_PRODUCT_HOME=/opt/jfrog/artifactory \
+    JF_PRODUCT_DATA_INTERNAL=/var/opt/jfrog/artifactory \
+    RECOMMENDED_MAX_OPEN_FILES=32000 \
+    MIN_MAX_OPEN_FILES=10000 \
+    RECOMMENDED_MAX_OPEN_PROCESSES=1024 \
+    POSTGRESQL_VERSION=9.4.1212
+
+COPY --from=base /var/opt/jfrog /var/opt/jfrog
+COPY --from=base /opt/jfrog /opt/jfrog
+COPY --from=base /entrypoint-artifactory.sh /
+WORKDIR ${JF_PRODUCT_HOME}
+RUN apt update
+RUN apt install -y openssh-server
+RUN apt install -y curl wget unzip vim net-tools libaio1
+RUN cp -rp /lib/x86_64-linux-gnu/libaio.so.1.0.1 /opt/jfrog/artifactory/app/artifactory/tomcat/lib/
+#RUN cd /
+RUN wget https://download.oracle.com/otn_software/linux/instantclient/195000/instantclient-basic-linux.x64-19.5.0.0.0dbru.zip
+RUN unzip instantclient-basic-linux.x64-19.5.0.0.0dbru.zip
+#RUN curl -u mattheww:b3555e389efec80dd3475a69695f7038dc539837 https://jfrog.bintray.com/enterprise-installers/generic-linux/jfrog-artifactory-pro-7.0.3-m007-linux.tar.gz -O -L
+#RUN mkdir jfrog-artifactory-pro && tar xf jfrog-artifactory-pro-7.0.3-m007-linux.tar.gz -C jfrog-artifactory-pro --strip-components 1
+# Add the license file
+ADD ./artifactory.lic /opt/jfrog/artifactory/var/etc/artifactory/artifactory.lic
+RUN chmod 777 /opt/jfrog/artifactory/var/etc/artifactory/artifactory.lic
+# Add the binary store
+ADD ./binarystore.xml /opt/jfrog/artifactory/var/etc/artifactory/binarystore.xml
+RUN chmod 777 /opt/jfrog/artifactory/var/etc/artifactory/binarystore.xml
+# Add the DEBs for SSH server
+ADD ./deb-ssh-6-6/*.deb /ssh/
+ADD ./deb-ssh-6-6/sshd_config /etc/ssh/sshd_config
+RUN chmod 777 /etc/ssh/sshd_config
+RUN echo "root:password" | chpasswd
+#Add extra java options from Mill, for the entrypoint script to pick up
+ADD ./java.options /
+# Startup script
+ADD ./entrypoint-unified.sh /
+ADD ./addName.sh /
+ADD ./createLdap.sh /
+# Add upgrade script
+ADD ./upgrade.sh /
+RUN cp /opt/jfrog/artifactory/var/etc/system.basic-template.yaml /opt/jfrog/artifactory/var/etc/system.yaml
+RUN sed 's/#joinKey:\s"<Your joinKey>"/    joinKey: 40c3c3653349eac20c09e8c18c010a78/g' /opt/jfrog/artifactory/var/etc/system.yaml > /opt/jfrog/artifactory/var/etc/system.yaml-new
+RUN mv /opt/jfrog/artifactory/var/etc/system.yaml-new /opt/jfrog/artifactory/var/etc/system.yaml
+# Add external DB stuff if needed
+#R ADD <SOURCEJDBCPATH> /opt/jfrog/artifactory/app/artifactory/tomcat/lib/connector.jar
+#R ADD <SOURCEDBPROPSPATH> /opt/jfrog/artifactory/var/etc/db.properties
+#R RUN sed -i -e 's/^/       /' /opt/jfrog/artifactory/var/etc/db.properties
+#R RUN sed -i -e 's/=/: /' /opt/jfrog/artifactory/var/etc/db.properties
+#R RUN cat /opt/jfrog/artifactory/var/etc/db.properties >> /opt/jfrog/artifactory/var/etc/system.yaml
+#RUN chown -R 1030:1030 /opt/jfrog/artifactory/var/etc
+EXPOSE 8081
+EXPOSE 10001
+ENTRYPOINT ["/bin/bash", "/entrypoint-unified.sh"]
