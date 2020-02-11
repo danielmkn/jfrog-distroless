@@ -37,8 +37,8 @@ COPY --from=base /var/opt/jfrog/artifactory /var/opt/jfrog/artifactory
 COPY --from=base /entrypoint-artifactory.sh /entrypoint-artifactory.sh
 
 # Metadata to let Artifactory know its installation source
-RUN mkdir -p ${ARTIFACTORY_DATA}/etc/info
-RUN echo "{\"productId\": \"JFrogRedHatUBI\",  \"features\": [{\"featureId\": \"${UBI_BASE_IMAGE}\"}]}" >${ARTIFACTORY_DATA}/etc/info/installer-info.json
+RUN mkdir -p ${JF_PRODUCT_DATA_INTERNAL}/etc/info
+RUN echo "{\"productId\": \"JFrogRedHatUBI\",  \"features\": [{\"featureId\": \"${UBI_BASE_IMAGE}\"}]}" >${JF_PRODUCT_DATA_INTERNAL}/etc/info/installer-info.json
 
 # Create the user, fix file system ownership and install needed tools with Yum
 # NOTE - wget must be installed for Artifactory HA
