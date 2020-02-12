@@ -21,8 +21,6 @@ LABEL name="JFrog Artifactory Pro" \
 # Environment needed for Artifactory
 ENV JF_ARTIFACTORY_USER=artifactory \
     ARTIFACTORY_USER_ID=1030 \
-    JF_SHARED_NODE_NAME=art \
-    JF_SHARED_NODE_ID=art0 \
     ARTIFACTORY_VERSION=${ARTIFACTORY_VERSION} \
     JF_PRODUCT_HOME=/opt/jfrog/artifactory \
     JF_PRODUCT_DATA_INTERNAL=/var/opt/jfrog/artifactory \
@@ -43,10 +41,12 @@ RUN echo "{\"productId\": \"JFrogRedHatUBI\",  \"features\": [{\"featureId\": \"
 # Create the user, fix file system ownership and install needed tools with Yum
 # NOTE - wget must be installed for Artifactory HA
 # procps must be installed to run Artifactory
+# hostname is needed to generate nodeID
 RUN useradd -M -s /usr/sbin/nologin --uid ${ARTIFACTORY_USER_ID} --user-group ${JF_ARTIFACTORY_USER} && \
     chown -R ${JF_ARTIFACTORY_USER}:${JF_ARTIFACTORY_USER} ${JF_PRODUCT_HOME} ${JF_PRODUCT_DATA_INTERNAL} && \
     yum install -y --disableplugin=subscription-manager wget && \
-    yum install -y --disableplugin=subscription-manager procps
+    yum install -y --disableplugin=subscription-manager procps && \
+    yum install -y --disableplugin=subscription-manager hostname
 
 
 USER $ARTIFACTORY_USER_NAME
